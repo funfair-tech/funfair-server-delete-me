@@ -1,0 +1,291 @@
+step "Create Database" {
+
+    action {
+        is_required = true
+        properties = {
+            EnableSnapshotIsolation = "True"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Template.Id = "ActionTemplates-141"
+            Octopus.Action.Template.Version = "3"
+            Password = "#{SqlPassword}"
+            Server = "#{SqlServer}"
+            SqlDatabase = "#{Database}"
+            Username = "#{SqlUserId}"
+        }
+    }
+}
+
+step " Download Database Package" {
+    properties = {
+        Octopus.Action.TargetRoles = "Build Server"
+    }
+
+    action {
+        action_type = "Octopus.TentaclePackage"
+        is_required = true
+        properties = {
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "Octopus Server (built-in)"
+            Octopus.Action.Package.PackageId = "funfair-scheduler.Database"
+        }
+        worker_pool_variable = ""
+
+        packages {
+            acquisition_location = "Server"
+            feed = "Octopus Server (built-in)"
+            package_id = "funfair-scheduler.Database"
+            properties = {
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "Create Database Release" {
+    properties = {
+        Octopus.Action.TargetRoles = "Build Server"
+    }
+
+    action {
+        is_required = true
+        properties = {
+            DLMAutomationDatabaseName = "#{Database}"
+            DLMAutomationDatabasePassword = "#{SqlPassword}"
+            DLMAutomationDatabaseServer = "#{SqlServer}"
+            DLMAutomationDatabaseUsername = "#{SqlUserId}"
+            DLMAutomationDeleteExistingFiles = "True"
+            DLMAutomationDeploymentResourcesPath = "#{DatabaseUpdateResourcesDirectory}"
+            DLMAutomationIncludeIdenticalsInReport = "False"
+            DLMAutomationNuGetDbPackageDownloadStepName = " Download Database Package"
+            DLMAutomationTransactionIsolationLevel = "Serializable"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Template.Id = "ActionTemplates-3"
+            Octopus.Action.Template.Version = "12"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "Review Database Update Scripts" {
+
+    action {
+        action_type = "Octopus.Manual"
+        environments = ["Showcase", "Live", "Staging"]
+        is_required = true
+        properties = {
+            Octopus.Action.Manual.BlockConcurrentDeployments = "False"
+            Octopus.Action.Manual.Instructions = "Please review the schema and static data changes, warnings and SQL change script in 'Changes.html'."
+        }
+    }
+}
+
+step "Deploy from Database Release" {
+    properties = {
+        Octopus.Action.TargetRoles = "Build Server"
+    }
+
+    action {
+        is_disabled = true
+        is_required = true
+        properties = {
+            DLMAutomationDatabaseName = "#{Database}"
+            DLMAutomationDatabasePassword = "#{SqlPassword}"
+            DLMAutomationDatabaseServer = "#{SqlServer}"
+            DLMAutomationDatabaseUsername = "#{SqlUserId}"
+            DLMAutomationDeploymentResourcesPath = "#{DatabaseUpdateResourcesDirectory}"
+            DLMAutomationNuGetDbPackageDownloadStepName = " Download Database Package"
+            DLMAutomationQueryBatchTimeout = "0"
+            DLMAutomationSkipPostUpdateSchemaCheck = "False"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Template.Id = "ActionTemplates-42"
+            Octopus.Action.Template.Version = "12"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "Redgate - Deploy from Database Release Copy" {
+    properties = {
+        Octopus.Action.TargetRoles = "Build Server"
+    }
+
+    action {
+        properties = {
+            DLMAutomationDatabaseName = "#{Database}"
+            DLMAutomationDatabasePassword = "#{SqlPassword}"
+            DLMAutomationDatabaseServer = "#{SqlServer}"
+            DLMAutomationDatabaseUsername = "#{SqlUserId}"
+            DLMAutomationDeploymentResourcesPath = "#{DatabaseUpdateResourcesDirectory}"
+            DLMAutomationNuGetDbPackageDownloadStepName = " Download Database Package"
+            DLMAutomationQueryBatchTimeout = "0"
+            DLMAutomationSkipPostUpdateSchemaCheck = "False"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Template.Id = "ActionTemplates-381"
+            Octopus.Action.Template.Version = "3"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "Deploy Service to ECS" {
+    package_requirement = "AfterPackageAcquisition"
+    properties = {
+        Octopus.Action.TargetRoles = "Treasury Servers"
+    }
+
+    action {
+        action_type = "aws-ecs"
+        is_disabled = true
+        is_required = true
+        step_package_version = "1.3.0"
+
+        packages "#_APP_NAME_" {
+            acquisition_location = "NotAcquired"
+            feed = "ECR"
+            package_id = "funfair/#{APP_NAME}"
+            step_package_inputs_reference_id = "b682f41e-3c71-4d64-8b45-f2c922abf780"
+        }
+
+        inputs {
+            cfStackName = "#{AWS.ContainerName}"
+            desiredCount = 1
+            maximumHealthPercent = 200
+            minimumHealthPercent = 100
+            name = "#{Octopus.Project.Name}"
+
+            additionalTags {
+                enableEcsManagedTags = false
+
+                tags {
+                    Key = "Network"
+                    Value = "#{APP_NAME}"
+                }
+            }
+
+            containers {
+                containerName = "#{AWS.ContainerName}"
+                essential = true
+                startTimeout = 15
+                stopTimeout = 15
+
+                containerImageReference {
+                    feedId = "Feeds-1001"
+                    imageName = "funfair/#{APP_NAME}"
+                    referenceId = "b682f41e-3c71-4d64-8b45-f2c922abf780"
+                }
+
+                containerLogging {
+                    type = "auto"
+                }
+
+                containerPortMappings {
+                    containerPort = 8080
+                    protocol = "tcp"
+                }
+
+                containerStorage {
+                    readOnlyRootFileSystem = false
+                }
+
+                environmentVariables {
+                    key = "API_PREFIX"
+                    type = "plain"
+                    value = "/#{APP_NAME}"
+                }
+
+                environmentVariables {
+                    key = "ALGORAND_API_KEY"
+                    type = "plain"
+                    value = "#{ALGORAND_API_KEY}"
+                }
+
+                environmentVariables {
+                    key = "ETHERSCAN_API_KEY"
+                    type = "plain"
+                    value = "#{ETHERSCAN_API_KEY}"
+                }
+
+                environmentVariables {
+                    key = "SUBSCAN_API_KEY"
+                    type = "plain"
+                    value = "#{SUBSCAN_API_KEY}"
+                }
+
+                environmentVariables {
+                    key = "SOLANABEACH_API_KEY"
+                    type = "plain"
+                    value = "#{SOLANABEACH_API_KEY}"
+                }
+
+                healthCheck {
+                    interval = 5
+                    retries = 1
+                    startPeriod = 5
+                    timeout = 2
+
+                    command {
+                        command = "CMD-SHELL"
+                    }
+
+                    command {
+                        command = "curl --fail --silent --output /dev/null http://localhost:8080/#{APP_NAME}/ping?source=ecs || exit 1"
+                    }
+                }
+
+                networkSettings {
+                    disableNetworking = false
+                }
+
+                repositoryAuthentication {
+                    type = "default"
+                }
+            }
+
+            loadBalancerMappings {
+                containerName = "#{AWS.ContainerName}"
+                containerPort = 8080
+                targetGroupArn = "#{AWS.TargetGroup}"
+            }
+
+            networkConfiguration {
+                autoAssignPublicIp = true
+
+                securityGroupIds {
+                    id = "sg-0272027302777cb4d"
+                }
+
+                securityGroupIds {
+                    id = "sg-e3e65a9a"
+                }
+
+                subnetIds {
+                    id = "subnet-d5ea03b2"
+                }
+
+                subnetIds {
+                    id = "subnet-fabb50b3"
+                }
+
+                subnetIds {
+                    id = "subnet-c68aa09e"
+                }
+            }
+
+            task {
+                cpu = 256
+                memory = 512
+                taskExecutionRole = "#{AWS.ECS.Execution.Role}"
+                taskRole = ""
+
+                runtimePlatform {
+                    cpuArchitecture = "ARM64"
+                    operatingSystemFamily = "LINUX"
+                }
+            }
+
+            waitOption {
+                type = "waitUntilCompleted"
+            }
+        }
+    }
+}
