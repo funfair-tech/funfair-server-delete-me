@@ -1,4 +1,5 @@
-step "Create Database" {
+step "create-database" {
+    name = "Create Database"
 
     action {
         is_required = true
@@ -15,7 +16,8 @@ step "Create Database" {
     }
 }
 
-step " Download Database Package" {
+step "download-database-package" {
+    name = " Download Database Package"
     properties = {
         Octopus.Action.TargetRoles = "Build Server"
     }
@@ -25,14 +27,14 @@ step " Download Database Package" {
         is_required = true
         properties = {
             Octopus.Action.Package.DownloadOnTentacle = "False"
-            Octopus.Action.Package.FeedId = "Octopus Server (built-in)"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
             Octopus.Action.Package.PackageId = "funfair-scheduler.Database"
         }
         worker_pool_variable = ""
 
         packages {
             acquisition_location = "Server"
-            feed = "Octopus Server (built-in)"
+            feed = "octopus-server-built-in"
             package_id = "funfair-scheduler.Database"
             properties = {
                 SelectionMode = "immediate"
@@ -41,7 +43,8 @@ step " Download Database Package" {
     }
 }
 
-step "Create Database Release" {
+step "create-database-release" {
+    name = "Create Database Release"
     properties = {
         Octopus.Action.TargetRoles = "Build Server"
     }
@@ -66,11 +69,12 @@ step "Create Database Release" {
     }
 }
 
-step "Review Database Update Scripts" {
+step "review-database-update-scripts" {
+    name = "Review Database Update Scripts"
 
     action {
         action_type = "Octopus.Manual"
-        environments = ["Showcase", "Live", "Staging"]
+        environments = ["showcase", "live", "staging"]
         is_required = true
         properties = {
             Octopus.Action.Manual.BlockConcurrentDeployments = "False"
@@ -79,7 +83,8 @@ step "Review Database Update Scripts" {
     }
 }
 
-step "Deploy from Database Release" {
+step "deploy-from-database-release" {
+    name = "Deploy from Database Release"
     properties = {
         Octopus.Action.TargetRoles = "Build Server"
     }
@@ -104,7 +109,8 @@ step "Deploy from Database Release" {
     }
 }
 
-step "Redgate - Deploy from Database Release Copy" {
+step "redgate-deploy-from-database-release-copy" {
+    name = "Redgate - Deploy from Database Release Copy"
     properties = {
         Octopus.Action.TargetRoles = "Build Server"
     }
@@ -127,7 +133,8 @@ step "Redgate - Deploy from Database Release Copy" {
     }
 }
 
-step "Deploy Service to ECS" {
+step "deploy-service-to-ecs" {
+    name = "Deploy Service to ECS"
     package_requirement = "AfterPackageAcquisition"
     properties = {
         Octopus.Action.TargetRoles = "Treasury Servers"
@@ -141,7 +148,7 @@ step "Deploy Service to ECS" {
 
         packages "#_APP_NAME_" {
             acquisition_location = "NotAcquired"
-            feed = "ECR"
+            feed = "ecr"
             package_id = "funfair/#{APP_NAME}"
             step_package_inputs_reference_id = "b682f41e-3c71-4d64-8b45-f2c922abf780"
         }
