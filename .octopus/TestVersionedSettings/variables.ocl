@@ -1,0 +1,75 @@
+variable "APP_NAME" {
+    value "scheduler" {}
+}
+
+variable "APP_OWNER" {
+    value "funfair" {}
+}
+
+variable "AWS.ContainerName" {
+    value "#{Octopus.Project.Name}#{Octopus.Environment.Name}" {}
+}
+
+variable "AWS.TargetGroup" {
+    value "" {
+        description = ""
+        environment = ["staging"]
+    }
+
+    value "" {
+        description = ""
+        environment = ["live"]
+    }
+
+    value "" {
+        environment = ["dev"]
+    }
+}
+
+variable "Database" {
+    value "Treasury-Dev" {
+        environment = ["dev"]
+    }
+
+    value "Treasury" {
+        environment = ["live"]
+    }
+
+    value "Treasury-Staging" {
+        environment = ["staging"]
+    }
+}
+
+variable "PackageId" {
+    value "#{APP_OWNER}\\#{APP_NAME}" {}
+}
+
+variable "SqlPassword" {
+    value "!Bf9kGykzOKFbCuJG*$r" {
+        environment = ["dev", "staging"]
+    }
+}
+
+variable "SqlServer" {
+    value "ethereum-services.cl6pzezocvmr.eu-west-1.rds.amazonaws.com" {
+        environment = ["live"]
+    }
+
+    value "staging.cl6pzezocvmr.eu-west-1.rds.amazonaws.com" {
+        environment = ["staging"]
+    }
+
+    value "sql.cl6pzezocvmr.eu-west-1.rds.amazonaws.com" {
+        environment = ["dev"]
+    }
+}
+
+variable "SqlUserId" {
+    value "sqlproduser" {
+        environment = ["live"]
+    }
+
+    value "sqluser" {
+        environment = ["dev", "staging"]
+    }
+}
