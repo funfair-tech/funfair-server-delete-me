@@ -58,7 +58,7 @@ jobs:
 
     - if: ${{ steps.findPr.outputs.number == '' }}
       id: open-pr
-      uses: repo-sync/pull-request@v2.6.2
+      uses: repo-sync/pull-request@v2.12.1
       with:
         source_branch: ""                     # If blank, default: triggered branch
         destination_branch: "main"            # If blank, default: master
